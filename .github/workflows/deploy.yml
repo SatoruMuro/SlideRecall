@@ -34,8 +34,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - name: Verify the deployable artifact contains only application assets
-        run: |
-          node --input-type=module -e "import { readdirSync, statSync } from 'node:fs'; import { join } from 'node:path'; const walk = p => readdirSync(p).flatMap(n => { const f = join(p,n); return statSync(f).isDirectory() ? walk(f) : [f]; }); const forbidden = walk('dist').filter(f => /\.(pdf|zip|md|txt|env|map)$/i.test(f) || /(^|[/\\])(tests?|fixtures?|node_modules|\.git)([/\\]|$)/i.test(f)); if (forbidden.length) { throw new Error('Unexpected non-application file in dist'); }"
+        run: node scripts/check-dist.mjs
       - uses: actions/upload-pages-artifact@v5.0.0
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
