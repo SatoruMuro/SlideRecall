@@ -1,0 +1,59 @@
+name: Validate and deploy SlideRecall
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'production' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Verify the deployable artifact contains only application assets
+        run: |
+          node --input-type=module -e "import { readdirSync, statSync } from 'node:fs'; import { join } from 'node:path'; const walk = p => readdirSync(p).flatMap(n => { const f = join(p,n); return statSync(f).isDirectory() ? walk(f) : [f]; }); const forbidden = walk('dist').filter(f => /\.(pdf|zip|md|txt|env|map)$/i.test(f) || /(^|[/\\])(tests?|fixtures?|node_modules|\.git)([/\\]|$)/i.test(f)); if (forbidden.length) { throw new Error('Unexpected non-application file in dist'); }"
+      - uses: actions/upload-pages-artifact@v5.0.0
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          path: dist
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v6.0.0
+      - name: Deploy application assets
+        id: deployment
+        uses: actions/deploy-pages@v5.0.1
