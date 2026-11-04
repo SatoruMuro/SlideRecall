@@ -199,17 +199,16 @@ describe("practice screen", () => {
     expect(confirmation).not.toHaveBeenCalled();
   });
 
-  it("preserves native Space activation on buttons and does not repeat shortcuts on key hold", async () => {
+  it("uses Space for hints even when a navigation button is focused, without auto-repeat", async () => {
     render(<Practice data={data} onExit={() => undefined} />);
     fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
     await screen.findByTestId("practice-slide-number");
-    const hintButton = screen.getByRole("button", { name: "ヒントを表示" });
-    fireEvent.keyDown(hintButton, { key: " ", code: "Space" });
+    const nextButton = screen.getByRole("button", { name: "未評価で次へ" });
+    fireEvent.keyDown(nextButton, { key: " ", code: "Space", repeat: true });
     expect(screen.queryByText("Pri……")).toBeNull();
-    fireEvent.keyDown(document.body, { key: " ", code: "Space", repeat: true });
-    expect(screen.queryByText("Pri……")).toBeNull();
-    fireEvent.keyDown(document.body, { key: " ", code: "Space" });
+    fireEvent.keyDown(nextButton, { key: " ", code: "Space" });
     expect(screen.getByText("Pri……")).toBeVisible();
+    expect(screen.getByTestId("practice-slide-number")).toHaveTextContent("スライド 1");
   });
 
   it("allows Space to intentionally reveal a hint in rehearsal mode", async () => {
