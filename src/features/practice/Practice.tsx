@@ -607,7 +607,7 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
       className={`practice-stage ${fullScreen ? "practice-fullscreen" : ""}`}
     >
       <header className="practice-header">
-        <div>
+        <div className="practice-heading">
           <span className="eyebrow">
             {modeLabels[run.session.mode]} · {run.index + 1}/{run.queue.length}
           </span>
@@ -615,7 +615,7 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
             スライド {current?.pageNumber}
           </h2>
         </div>
-        <div className="row">
+        <div className="practice-header-actions">
           <span className="practice-timer" aria-label="経過時間">
             {formatDuration(seconds)}
           </span>
@@ -627,107 +627,47 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
           </button>
         </div>
       </header>
-      <div className="practice-steps" aria-label="練習の進行">
-        <span aria-current={run.phase === "recall" ? "step" : undefined}>
-          1 想起中
-        </span>
-        <span aria-current={run.phase === "answer" ? "step" : undefined}>
-          2 答え合わせ
-        </span>
-        <span aria-current={run.phase === "rating" ? "step" : undefined}>
-          3 自己評価
-        </span>
-        <span aria-current={run.phase === "next" ? "step" : undefined}>
-          4 次へ
-        </span>
-      </div>
-      <div className="practice-slide">
-        <PdfSlide
-          assetId={data.project.pdfAssetId}
-          pageNumber={current?.pageNumber ?? 1}
-        />
-      </div>
-      {error && <p role="alert">{error}</p>}
-      {current && (run.phase !== "recall" || hintLevel > 0) && (
-        <aside className="panel practice-script" aria-live="polite">
-          <h3>
-            {run.phase === "recall"
-              ? `ヒント ${hintLevel}/3`
-              : "答え合わせ（ヒント使用には含みません）"}
-          </h3>
-          {run.phase === "recall" && hintLevel > 0 && hintLevel < 3 && (
-            <div>
-              <strong>文頭ヒント（各文の先頭{hintLevel === 1 ? 3 : 8}文字）</strong>
-              {sentenceHints.length ? (
-                <ol className="sentence-cue-list">
-                  {sentenceHints.map((text, index) => (
-                    <li key={index}>{text}</li>
-                  ))}
-                </ol>
-              ) : (
-                <p>原稿は未設定です</p>
-              )}
+      <div className="practice-workspace">
+        <div className="practice-slide">
+          <PdfSlide
+            assetId={data.project.pdfAssetId}
+            pageNumber={current?.pageNumber ?? 1}
+          />
+        </div>
+        <aside className="practice-side-panel">
+          <div className="practice-panel-header">
+            <div className="practice-steps" aria-label="練習の進行">
+              <span aria-current={run.phase === "recall" ? "step" : undefined}>
+                1 想起中
+              </span>
+              <span aria-current={run.phase === "answer" ? "step" : undefined}>
+                2 答え合わせ
+              </span>
+              <span aria-current={run.phase === "rating" ? "step" : undefined}>
+                3 自己評価
+              </span>
+              <span aria-current={run.phase === "next" ? "step" : undefined}>
+                4 次へ
+              </span>
             </div>
-          )}
-          {run.phase !== "recall" && (
-            <>
-              {current.keyPoints.length > 0 && (
-                <div>
-                  <strong>重要説明ポイント（任意設定）</strong>
-                  <ol>
-                    {current.keyPoints.map((point) => (
-                      <li key={point.id}>
-                        {point.text}
-                        {point.required ? "（必須）" : ""}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-              <p>
-                <strong>冒頭アンカー</strong>
-                <br />
-                {openingForSlide(current) || "未設定"}
-              </p>
-            </>
-          )}
-          {(run.phase !== "recall" || hintLevel >= 3) && (
-            <>
-              <strong>原稿全文</strong>
-              <p className="script-text">
-                {current.fullScript || "原稿は未設定です"}
-              </p>
-            </>
-          )}
-          {run.phase !== "recall" && (
-            <>
-              <p>
-                <strong>締めアンカー</strong>
-                <br />
-                {closingForSlide(current) || "未設定"}
-              </p>
-              <p>
-                <strong>次への接続</strong>
-                <br />
-                {current.transitionToNext || "未設定"}
-              </p>
-            </>
-          )}
-        </aside>
-      )}
-      <footer className="panel practice-controls">
-        {run.phase === "recall" && (
-          <>
-            <div className="row spread">
+            <div className="practice-status-row">
               <span className="practice-status">
-                {hintLevel === 0
-                  ? "原稿は非表示です"
-                  : hintLevel === 1
-                    ? "文頭3文字を表示中"
-                    : hintLevel === 2
-                      ? "文頭8文字を表示中"
-                      : "原稿全文を表示中"}
-                {run.clock.resumedAt === null ? " · 一時停止中" : ""}
+                {run.phase === "recall"
+                  ? hintLevel === 0
+                    ? "原稿は非表示です"
+                    : hintLevel === 1
+                      ? "文頭3文字を表示中"
+                      : hintLevel === 2
+                        ? "文頭8文字を表示中"
+                        : "原稿全文を表示中"
+                  : run.phase === "next"
+                    ? `${run.draft.rating ? ratingLabels[run.draft.rating] : "未評価"} · 保存済み`
+                    : run.phase === "rating"
+                      ? "自己評価"
+                      : "答え合わせ"}
+                {run.phase === "recall" && run.clock.resumedAt === null
+                  ? " · 一時停止中"
+                  : ""}
               </span>
               {current?.targetSeconds && (
                 <span className="muted">
@@ -735,111 +675,201 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
                 </span>
               )}
             </div>
-            <div className="row">
-              <button disabled={busy} onClick={pause}>
-                {run.clock.resumedAt === null ? "タイマーを再開" : "一時停止"}
-              </button>
-              {run.session.mode === "rehearsal" && !rehearsalHints ? (
-                <button onClick={() => setRehearsalHints(true)}>
-                  ヒント操作を有効にする
+          </div>
+          <div
+            className="practice-content"
+            role="region"
+            aria-label="ヒントと原稿"
+            tabIndex={0}
+          >
+            {error && (
+              <p className="notice error" role="alert">{error}</p>
+            )}
+            {run.phase === "recall" && hintLevel === 0 && (
+              <div className="practice-placeholder">
+                <p>スライドを見て、話す内容を思い出しましょう。</p>
+                <p className="muted">ヒントと原稿はここに表示されます。</p>
+              </div>
+            )}
+            {run.phase === "answer" && (
+              <p className="practice-guidance">
+                必須ポイントとアンカーを確認して、再現できたか振り返りましょう。
+              </p>
+            )}
+            {run.phase === "rating" && (
+              <div className="practice-guidance">
+                <p>
+                  ◎の目安：ヒントなしで必須の内容と指定アンカーを再現。機械による正誤判定は行いません。
+                </p>
+                {hintLevel > 0 && (
+                  <p className="notice">
+                    今回はヒントを使用しています。自力で再現できた範囲を振り返って評価してください。
+                  </p>
+                )}
+              </div>
+            )}
+            {current && (run.phase !== "recall" || hintLevel > 0) && (
+              <div className="practice-script" aria-live="polite">
+                <h3>
+                  {run.phase === "recall"
+                    ? `ヒント ${hintLevel}/3`
+                    : "答え合わせ（ヒント使用には含みません）"}
+                </h3>
+                {run.phase === "recall" && hintLevel > 0 && hintLevel < 3 && (
+                  <div>
+                    <strong>
+                      文頭ヒント（各文の先頭{hintLevel === 1 ? 3 : 8}文字）
+                    </strong>
+                    {sentenceHints.length ? (
+                      <ol className="sentence-cue-list">
+                        {sentenceHints.map((text, index) => (
+                          <li key={index}>{text}</li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p>原稿は未設定です</p>
+                    )}
+                  </div>
+                )}
+                {run.phase !== "recall" && (
+                  <>
+                    {current.keyPoints.length > 0 && (
+                      <div>
+                        <strong>重要説明ポイント（任意設定）</strong>
+                        <ol>
+                          {current.keyPoints.map((point) => (
+                            <li key={point.id}>
+                              {point.text}
+                              {point.required ? "（必須）" : ""}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                    <p>
+                      <strong>冒頭アンカー</strong>
+                      <br />
+                      {openingForSlide(current) || "未設定"}
+                    </p>
+                  </>
+                )}
+                {(run.phase !== "recall" || hintLevel >= 3) && (
+                  <div>
+                    <strong>原稿全文</strong>
+                    <p className="script-text">
+                      {current.fullScript || "原稿は未設定です"}
+                    </p>
+                  </div>
+                )}
+                {run.phase !== "recall" && (
+                  <>
+                    <p>
+                      <strong>締めアンカー</strong>
+                      <br />
+                      {closingForSlide(current) || "未設定"}
+                    </p>
+                    <p>
+                      <strong>次への接続</strong>
+                      <br />
+                      {current.transitionToNext || "未設定"}
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          <footer className="practice-controls">
+            {run.phase === "recall" && (
+              <div className="practice-actions practice-recall-actions">
+                <button disabled={busy} onClick={pause}>
+                  {run.clock.resumedAt === null ? "タイマーを再開" : "一時停止"}
                 </button>
-              ) : (
-                <button disabled={hintLevel >= 3 || busy} onClick={hint}>
-                  ヒントを表示
+                {run.session.mode === "rehearsal" && !rehearsalHints ? (
+                  <button onClick={() => setRehearsalHints(true)}>
+                    ヒント操作を有効にする
+                  </button>
+                ) : (
+                  <button disabled={hintLevel >= 3 || busy} onClick={hint}>
+                    ヒントを表示
+                  </button>
+                )}
+                {run.session.mode === "rehearsal" ? (
+                  <button
+                    className="primary"
+                    disabled={busy}
+                    onClick={() => void moveNext()}
+                  >
+                    {run.index + 1 === run.queue.length
+                      ? "リハーサルを終了"
+                      : "次のスライドへ"}
+                  </button>
+                ) : (
+                  <button
+                    className="primary"
+                    disabled={busy}
+                    onClick={() => void finishSpeech()}
+                  >
+                    発話を終えて答え合わせ
+                  </button>
+                )}
+              </div>
+            )}
+            {run.phase === "answer" && (
+              <div className="practice-actions">
+                <button
+                  className="primary"
+                  onClick={() => update({ ...run, phase: "rating" })}
+                >
+                  自己評価へ
                 </button>
-              )}
-              {run.session.mode === "rehearsal" ? (
+              </div>
+            )}
+            {run.phase === "rating" && (
+              <div className="practice-actions practice-rating-actions">
+                {(Object.keys(ratingLabels) as Rating[]).map((rating, i) => (
+                  <button
+                    aria-label={ratingLabels[rating]}
+                    className={`rating rating-${rating}`}
+                    key={rating}
+                    disabled={busy}
+                    onClick={() => void rate(rating)}
+                  >
+                    {ratingLabels[rating]}
+                    <small aria-hidden="true">{i + 1}</small>
+                  </button>
+                ))}
+              </div>
+            )}
+            {run.phase === "next" && (
+              <div className="practice-actions">
                 <button
                   className="primary"
                   disabled={busy}
                   onClick={() => void moveNext()}
                 >
-                  {run.index + 1 === run.queue.length
-                    ? "リハーサルを終了"
-                    : "次のスライドへ"}
+                  {run.index + 1 === run.queue.length ? "結果を見る" : "次へ"}
                 </button>
-              ) : (
-                <button
-                  className="primary"
-                  disabled={busy}
-                  onClick={() => void finishSpeech()}
-                >
-                  発話を終えて答え合わせ
+              </div>
+            )}
+            <div className="practice-navigation">
+              <button
+                disabled={busy || run.index === 0}
+                onClick={() => void moveNext(true, true)}
+              >
+                前のスライドを練習
+              </button>
+              {run.phase !== "next" && run.session.mode !== "rehearsal" && (
+                <button disabled={busy} onClick={() => void moveNext(true)}>
+                  未評価で次へ
                 </button>
               )}
             </div>
-          </>
-        )}
-        {run.phase === "answer" && (
-          <div className="row">
-            <p>
-              必須ポイントとアンカーを確認して、再現できたか振り返りましょう。
-            </p>
-            <button
-              className="primary"
-              onClick={() => update({ ...run, phase: "rating" })}
-            >
-              自己評価へ
-            </button>
-          </div>
-        )}
-        {run.phase === "rating" && (
-          <>
-            <p>
-              ◎の目安：ヒントなしで必須の内容と指定アンカーを再現。機械による正誤判定は行いません。
-            </p>
-            {hintLevel > 0 && (
-              <p className="notice">
-                今回はヒントを使用しています。自力で再現できた範囲を振り返って評価してください。
-              </p>
-            )}
-            <div className="row">
-              {(Object.keys(ratingLabels) as Rating[]).map((rating, i) => (
-                <button
-                  aria-label={ratingLabels[rating]}
-                  className={`rating rating-${rating}`}
-                  key={rating}
-                  disabled={busy}
-                  onClick={() => void rate(rating)}
-                >
-                  {ratingLabels[rating]}
-                  <small aria-hidden="true">{i + 1}</small>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-        {run.phase === "next" && (
-          <div className="row spread">
-            <p>
-              {run.draft.rating && ratingLabels[run.draft.rating]} · 保存済み
-            </p>
-            <button
-              className="primary"
-              disabled={busy}
-              onClick={() => void moveNext()}
-            >
-              {run.index + 1 === run.queue.length ? "結果を見る" : "次へ"}
-            </button>
-          </div>
-        )}
-        <div className="row spread practice-navigation">
-          <button
-            disabled={busy || run.index === 0}
-            onClick={() => void moveNext(true, true)}
-          >
-            前のスライドを練習
-          </button>
-          {run.phase !== "next" && run.session.mode !== "rehearsal" && (
-            <button disabled={busy} onClick={() => void moveNext(true)}>
-              未評価で次へ
-            </button>
-          )}
-          <small className="muted">
-            H：ヒント · Space：一時停止 · 1/2/3：評価 · ←/→：移動
-          </small>
-        </div>
-      </footer>
+            <small className="practice-shortcuts muted">
+              H：ヒント · Space：一時停止 · 1/2/3：評価 · ←/→：移動
+            </small>
+          </footer>
+        </aside>
+      </div>
     </section>
   );
 }

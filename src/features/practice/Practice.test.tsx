@@ -6,7 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProjectData } from "../../domain/types";
+import type { PracticeMode, ProjectData } from "../../domain/types";
 import { Practice } from "./Practice";
 import { saveSession } from "../../lib/storage";
 
@@ -47,6 +47,59 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 describe("practice screen", () => {
+  it.each<PracticeMode>(["sequential", "weak", "random", "rehearsal"])(
+    "keeps the PDF mounted through hint and fullscreen changes in %s mode",
+    async (mode) => {
+      const script = "本日はありがとうございます。次に研究を紹介します。";
+      const practiceData: ProjectData = {
+        ...data,
+        slides: data.slides.map((slide) => ({ ...slide, fullScript: script })),
+        attempts: [{
+          id: "previous-attempt",
+          sessionId: "previous-session",
+          slideId: "s1",
+          slideRevision: 1,
+          startedAt: "2026-01-01T00:00:00Z",
+          finishedAt: "2026-01-01T00:00:10Z",
+          durationSeconds: 10,
+          hintsUsed: [],
+          rating: "again",
+        }],
+      };
+      render(<Practice data={practiceData} initialMode={mode} onExit={() => undefined} />);
+      fireEvent.change(screen.getByLabelText("終了スライド"), { target: { value: "1" } });
+      fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
+      await screen.findByTestId("practice-slide-number");
+      const pdf = screen.getByText("PDF page 1");
+      expect(screen.queryByText(script)).toBeNull();
+      if (mode === "rehearsal") {
+        expect(screen.queryByRole("button", { name: "ヒントを表示" })).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "ヒント操作を有効にする" }));
+      }
+      for (const [index, expected] of ["本日は……", "本日はありがとう……", script].entries()) {
+        fireEvent.click(screen.getByRole("button", { name: "ヒントを表示" }));
+        expect(screen.getByText(expected)).toBeVisible();
+        expect(screen.getByText("PDF page 1")).toBe(pdf);
+        await waitFor(() => expect(vi.mocked(saveSession).mock.calls.at(-1)?.[1].at(-1)?.hintsUsed.map((hint) => hint.level)).toEqual([1, 2, 3].slice(0, index + 1)));
+      }
+      fireEvent.click(screen.getByRole("button", { name: "全画面" }));
+      expect(pdf.closest(".practice-stage")).toHaveClass("practice-fullscreen");
+      expect(screen.getByText("PDF page 1")).toBe(pdf);
+      fireEvent.click(screen.getByRole("button", { name: "全画面を終了" }));
+      expect(pdf.closest(".practice-stage")).not.toHaveClass("practice-fullscreen");
+      expect(screen.getByText("PDF page 1")).toBe(pdf);
+      if (mode !== "rehearsal") {
+        fireEvent.click(screen.getByRole("button", { name: "発話を終えて答え合わせ" }));
+        await screen.findByRole("button", { name: "自己評価へ" });
+        expect(screen.getByText("PDF page 1")).toBe(pdf);
+        fireEvent.click(screen.getByRole("button", { name: "自己評価へ" }));
+        fireEvent.click(screen.getByRole("button", { name: "◎ スムーズ" }));
+        await screen.findByRole("button", { name: "結果を見る" });
+        expect(screen.getByText("PDF page 1")).toBe(pdf);
+      }
+      expect(vi.mocked(saveSession).mock.calls.at(-1)?.[1].at(-1)?.hintsUsed.map((hint) => hint.level)).toEqual([1, 2, 3]);
+    },
+  );
   it("hides the script during recall and persists answer checking without a hint", async () => {
     render(<Practice data={data} onExit={() => undefined} />);
     fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
