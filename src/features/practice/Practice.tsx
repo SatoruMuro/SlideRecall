@@ -302,7 +302,7 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
       phase: "next",
     });
   }
-  async function moveNext(skip = false, previous = false) {
+  async function moveNext(previous = false) {
     if (!run) return;
     if (
       previous &&
@@ -314,12 +314,6 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
       );
       return;
     }
-    if (
-      skip &&
-      run.session.mode !== "rehearsal" &&
-      !window.confirm("このスライドは未評価で保存して移動しますか？")
-    )
-      return;
     const clock = pauseClock(run.clock, now());
     const draft =
       run.phase === "recall"
@@ -456,7 +450,7 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
       }
       if (event.key === "ArrowLeft" && run.index > 0) {
         event.preventDefault();
-        void moveNext(true, true);
+        void moveNext(true);
       }
       if (event.key === "Escape" && fullScreen) setFullScreen(false);
     };
@@ -854,12 +848,12 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
             <div className="practice-navigation">
               <button
                 disabled={busy || run.index === 0}
-                onClick={() => void moveNext(true, true)}
+                onClick={() => void moveNext(true)}
               >
                 前のスライドを練習
               </button>
               {run.phase !== "next" && run.session.mode !== "rehearsal" && (
-                <button disabled={busy} onClick={() => void moveNext(true)}>
+                <button disabled={busy} onClick={() => void moveNext()}>
                   未評価で次へ
                 </button>
               )}
