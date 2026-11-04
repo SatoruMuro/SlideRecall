@@ -432,14 +432,10 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
         return;
       if (!run || run.phase === "summary") return;
 
-      // Preserve native Space activation of buttons, links, and other controls.
-      const nativeSpaceControl =
-        event.code === "Space" &&
-        target?.closest('button, a[href], [role="button"], summary');
-      if (
-        (event.code === "Space" && !nativeSpaceControl) ||
-        event.key.toLowerCase() === "h"
-      ) {
+      // Space is always a hint shortcut during practice, including when a
+      // button retained focus from a preceding mouse click. Enter still
+      // activates a focused button using the browser's native behavior.
+      if (event.code === "Space" || event.key.toLowerCase() === "h") {
         event.preventDefault();
         hint(true);
         return;
