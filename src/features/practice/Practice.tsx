@@ -369,11 +369,15 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
       onExit();
     }
   }
-  function hint() {
+  function hint(allowRehearsalShortcut = false) {
     if (
       run?.phase === "recall" &&
-      (run.session.mode !== "rehearsal" || rehearsalHints)
+      (run.session.mode !== "rehearsal" || rehearsalHints || allowRehearsalShortcut) &&
+      Math.max(0, ...run.draft.hintsUsed.map((h) => h.level)) < 3
     ) {
+      // A deliberate shortcut can reveal a cue even in rehearsal mode.
+      if (run.session.mode === "rehearsal" && allowRehearsalShortcut)
+        setRehearsalHints(true);
       const next = {
         ...run,
         draft: revealHint(run.draft, elapsedSeconds(run.clock, now())),
@@ -415,24 +419,31 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
   }
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
+      const target =
+        event.target instanceof Element ? event.target : document.activeElement;
       if (
         event.repeat ||
         event.ctrlKey ||
         event.metaKey ||
         event.altKey ||
         operation.current ||
-        target.closest('input, textarea, select, [contenteditable="true"]')
+        target?.closest('input, textarea, select, [contenteditable="true"]')
       )
         return;
       if (!run || run.phase === "summary") return;
-      if (event.key.toLowerCase() === "h") {
+
+      // Space is always a hint shortcut during practice, including when a
+      // button retained focus from a preceding mouse click. Enter still
+      // activates a focused button using the browser's native behavior.
+      if (event.code === "Space" || event.key.toLowerCase() === "h") {
         event.preventDefault();
-        hint();
+        hint(true);
+        return;
       }
-      if (event.code === "Space" && target.tagName !== "BUTTON") {
+      if (event.key.toLowerCase() === "p") {
         event.preventDefault();
         pause();
+        return;
       }
       if (run.phase === "rating" && ["1", "2", "3"].includes(event.key)) {
         event.preventDefault();
@@ -441,16 +452,18 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
             event.key as "1" | "2" | "3"
           ],
         );
+        return;
       }
       if (event.key === "ArrowRight") {
         event.preventDefault();
-        if (run.phase === "next") void moveNext();
-        else if (run.phase === "answer") update({ ...run, phase: "rating" });
-        else if (run.session.mode === "rehearsal") void moveNext();
+        // Always advance, leaving the attempt ungraded when no rating was given.
+        void moveNext();
+        return;
       }
       if (event.key === "ArrowLeft" && run.index > 0) {
         event.preventDefault();
         void moveNext(true);
+        return;
       }
       if (event.key === "Escape" && fullScreen) setFullScreen(false);
     };
@@ -783,7 +796,7 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
                     ヒント操作を有効にする
                   </button>
                 ) : (
-                  <button disabled={hintLevel >= 3 || busy} onClick={hint}>
+                  <button disabled={hintLevel >= 3 || busy} onClick={() => hint()}>
                     ヒントを表示
                   </button>
                 )}
@@ -859,7 +872,7 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
               )}
             </div>
             <small className="practice-shortcuts muted">
-              H：ヒント · Space：一時停止 · 1/2/3：評価 · ←/→：移動
+              Space/H：ヒント · P：一時停止 · ←：前へ · →：未評価で次へ · 1/2/3：評価
             </small>
           </footer>
         </aside>

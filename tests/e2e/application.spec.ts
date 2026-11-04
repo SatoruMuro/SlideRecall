@@ -12,6 +12,38 @@ import {
   syntheticToken,
 } from "./helpers";
 
+test("キーボードでヒント・一時停止・未評価スライド移動を完結できる", async ({ page }) => {
+  const unexpectedDialogs: string[] = [];
+  page.on("dialog", (dialog) => {
+    unexpectedDialogs.push(dialog.message());
+    void dialog.dismiss();
+  });
+  await page.goto("./");
+  await importPresentation(page);
+  await page.getByRole("button", { name: "続きから練習", exact: true }).click();
+  await page.getByRole("button", { name: "練習を開始", exact: true }).click();
+  await assertPdfPage(page, 1);
+
+  // The Space shortcut must win even if the previous button retains focus.
+  await page.getByRole("button", { name: "未評価で次へ", exact: true }).focus();
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("heading", { name: "ヒント 1/3" })).toBeVisible();
+  await assertPdfPage(page, 1);
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("heading", { name: "ヒント 2/3" })).toBeVisible();
+
+  await page.keyboard.press("p");
+  await expect(page.locator(".practice-status")).toContainText("一時停止中");
+  await page.keyboard.press("p");
+  await expect(page.locator(".practice-status")).not.toContainText("一時停止中");
+
+  await page.keyboard.press("ArrowRight");
+  await assertPdfPage(page, 2);
+  await page.keyboard.press("ArrowLeft");
+  await assertPdfPage(page, 1);
+  expect(unexpectedDialogs).toEqual([]);
+});
+
 test("未評価の前後移動は確認ダイアログなしで保存される", async ({ page }) => {
   const dialogs: string[] = [];
   page.on("dialog", (dialog) => {

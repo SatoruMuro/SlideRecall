@@ -160,6 +160,79 @@ describe("practice screen", () => {
     expect(screen.getByTestId("practice-slide-number")).toHaveTextContent("スライド 1");
   });
 
+  it("uses Space/H to reveal hints and P to pause without changing the script", async () => {
+    render(<Practice data={data} onExit={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
+    await screen.findByTestId("practice-slide-number");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+    );
+    const original = data.slides[0].fullScript;
+    fireEvent.keyDown(document.body, { key: " ", code: "Space" });
+    expect(screen.getByText("Pri……")).toBeVisible();
+    await waitFor(() =>
+      expect(vi.mocked(saveSession).mock.calls.at(-1)?.[1][0].hintsUsed).toHaveLength(1),
+    );
+    fireEvent.keyDown(document.body, { key: "h", code: "KeyH" });
+    expect(screen.getByText("文頭8文字を表示中")).toBeVisible();
+    fireEvent.keyDown(document.body, { key: "p", code: "KeyP" });
+    expect(screen.getByText(/一時停止中/)).toBeVisible();
+    fireEvent.keyDown(document.body, { key: "p", code: "KeyP" });
+    expect(screen.queryByText(/一時停止中/)).toBeNull();
+    expect(data.slides[0].fullScript).toBe(original);
+  });
+
+  it("moves to the next or previous slide by arrow keys with ungraded saved attempts", async () => {
+    const confirmation = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<Practice data={data} onExit={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
+    await screen.findByTestId("practice-slide-number");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+    );
+    fireEvent.keyDown(document.body, { key: "ArrowRight", code: "ArrowRight" });
+    await waitFor(() =>
+      expect(screen.getByTestId("practice-slide-number")).toHaveTextContent("スライド 2"),
+    );
+    expect(confirmation).not.toHaveBeenCalled();
+    const [, attempts] = vi.mocked(saveSession).mock.calls.at(-1)!;
+    expect(attempts.find((a) => a.slideId === "s1")?.rating).toBeUndefined();
+
+    fireEvent.keyDown(document.body, { key: "ArrowLeft", code: "ArrowLeft" });
+    await waitFor(() =>
+      expect(screen.getByTestId("practice-slide-number")).toHaveTextContent("スライド 1"),
+    );
+    expect(confirmation).not.toHaveBeenCalled();
+  });
+
+  it("uses Space for hints even when a navigation button is focused, without auto-repeat", async () => {
+    render(<Practice data={data} onExit={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
+    await screen.findByTestId("practice-slide-number");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+    );
+    const nextButton = screen.getByRole("button", { name: "未評価で次へ" });
+    fireEvent.keyDown(nextButton, { key: " ", code: "Space", repeat: true });
+    expect(screen.queryByText("Pri……")).toBeNull();
+    fireEvent.keyDown(nextButton, { key: " ", code: "Space" });
+    expect(screen.getByText("Pri……")).toBeVisible();
+    expect(screen.getByTestId("practice-slide-number")).toHaveTextContent("スライド 1");
+  });
+
+  it("allows Space to intentionally reveal a hint in rehearsal mode", async () => {
+    render(<Practice data={data} onExit={() => undefined} initialMode="rehearsal" />);
+    fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
+    await screen.findByTestId("practice-slide-number");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+    );
+    expect(screen.queryByRole("button", { name: "ヒントを表示" })).toBeNull();
+    fireEvent.keyDown(document.body, { key: " ", code: "Space" });
+    expect(screen.getByText("Pri……")).toBeVisible();
+    expect(screen.getByRole("button", { name: "ヒントを表示" })).toBeVisible();
+  });
+
   it("records hints only while recalling and includes the frozen script revision", async () => {
     render(<Practice data={data} onExit={() => undefined} />);
     fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));

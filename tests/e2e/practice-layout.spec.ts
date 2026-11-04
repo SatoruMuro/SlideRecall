@@ -257,28 +257,28 @@ test("全画面APIとCSSフォールバックの両方でPDF・原稿・操作�
   await assertWorkspace(page);
 });
 
-test("原稿領域にフォーカスしたまま既存の練習ショートカットを使える", async ({ page }) => {
+test("原稿領域にフォーカスしたまま新しい練習ショートカットを使える", async ({ page }) => {
   await page.setViewportSize({ width:1366, height:768 });
   await page.goto("./");
   await importPresentation(page, importScript);
   await startMode(page);
   const content = page.getByRole("region", { name:"ヒントと原稿", exact:true });
   await content.focus();
-  await page.keyboard.press("Space");
+  await page.keyboard.press("p");
   await expect(page.getByRole("button", { name:"タイマーを再開", exact:true })).toBeVisible();
-  await page.keyboard.press("Space");
+  await page.keyboard.press("p");
   await expect(page.getByRole("button", { name:"一時停止", exact:true })).toBeVisible();
-  await page.keyboard.press("h");
+  await page.keyboard.press("Space");
   await expect(page.getByRole("heading", { name:"ヒント 1/3", exact:true })).toBeVisible();
+  await page.keyboard.press("h");
+  await expect(page.getByRole("heading", { name:"ヒント 2/3", exact:true })).toBeVisible();
   await page.getByRole("button", { name:"発話を終えて答え合わせ", exact:true }).click();
+  await page.getByRole("button", { name:"自己評価へ", exact:true }).click();
   await content.focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(page.getByRole("button", { name:"△ あいまい", exact:true })).toBeVisible();
   await page.keyboard.press("2");
   await expect(page.getByRole("button", { name:"次へ", exact:true })).toBeVisible();
   await page.keyboard.press("ArrowRight");
   await assertPdfPage(page, 2);
-  page.once("dialog", dialog => dialog.accept());
   await page.keyboard.press("ArrowLeft");
   await assertPdfPage(page, 1);
   await assertWorkspace(page);
