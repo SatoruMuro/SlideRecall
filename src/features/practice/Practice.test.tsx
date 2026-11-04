@@ -164,6 +164,9 @@ describe("practice screen", () => {
     render(<Practice data={data} onExit={() => undefined} />);
     fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
     await screen.findByTestId("practice-slide-number");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+    );
     const original = data.slides[0].fullScript;
     fireEvent.keyDown(document.body, { key: " ", code: "Space" });
     expect(screen.getByText("Pri……")).toBeVisible();
@@ -184,6 +187,9 @@ describe("practice screen", () => {
     render(<Practice data={data} onExit={() => undefined} />);
     fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
     await screen.findByTestId("practice-slide-number");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+    );
     fireEvent.keyDown(document.body, { key: "ArrowRight", code: "ArrowRight" });
     await waitFor(() =>
       expect(screen.getByTestId("practice-slide-number")).toHaveTextContent("スライド 2"),
@@ -203,6 +209,9 @@ describe("practice screen", () => {
     render(<Practice data={data} onExit={() => undefined} />);
     fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
     await screen.findByTestId("practice-slide-number");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+    );
     const nextButton = screen.getByRole("button", { name: "未評価で次へ" });
     fireEvent.keyDown(nextButton, { key: " ", code: "Space", repeat: true });
     expect(screen.queryByText("Pri……")).toBeNull();
@@ -215,6 +224,9 @@ describe("practice screen", () => {
     render(<Practice data={data} onExit={() => undefined} initialMode="rehearsal" />);
     fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
     await screen.findByTestId("practice-slide-number");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+    );
     expect(screen.queryByRole("button", { name: "ヒントを表示" })).toBeNull();
     fireEvent.keyDown(document.body, { key: " ", code: "Space" });
     expect(screen.getByText("Pri……")).toBeVisible();
