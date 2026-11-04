@@ -796,7 +796,7 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
                     ヒント操作を有効にする
                   </button>
                 ) : (
-                  <button disabled={hintLevel >= 3 || busy} onClick={hint}>
+                  <button disabled={hintLevel >= 3 || busy} onClick={() => hint()}>
                     ヒントを表示
                   </button>
                 )}
