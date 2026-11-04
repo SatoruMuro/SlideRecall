@@ -297,7 +297,7 @@ export function App() {
           <ImportWizard
             onComplete={(id) => {
               void refresh();
-              void open(id, "editor");
+              void open(id, "practice");
             }}
             onCancel={home}
           />
