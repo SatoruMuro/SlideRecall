@@ -123,7 +123,7 @@ export function ImportWizard({
       <p className="eyebrow">NEW PRESENTATION</p>
       <h1>発表を追加</h1>
       <p className="muted">
-        PDFと原稿を、このブラウザに読み込みます。どちらか一方だけでも始められます。
+        PDFと原稿を、このブラウザに読み込みます。どちらか一方だけでも始められます。冒頭と締め、文頭ヒントは原稿から自動生成されるため事前編集は不要です。
       </p>
       {error && (
         <p role="alert" className="notice error">

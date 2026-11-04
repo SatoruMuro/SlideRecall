@@ -263,6 +263,10 @@ test("原稿だけの取り込みでも欠番を詰めず、重複と不正PDF�
   ).toHaveValue("Third page\n\nDuplicate block");
   await expect(page.getByText(/重複/).first()).toBeVisible();
   await page.getByRole("button", { name: "保存して開始", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "練習をはじめる" })).toBeVisible();
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.getByRole("button", { name: "発表一覧", exact: true }).click();
+  await page.getByRole("button", { name: "原稿を編集", exact: true }).click();
   await expect(
     page.getByRole("textbox", { name: "原稿全文", exact: true }),
   ).toHaveValue("First line\nSecond line");

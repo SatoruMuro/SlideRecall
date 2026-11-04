@@ -49,7 +49,9 @@ export async function importPresentation(page: Page, script = syntheticScript) {
     .getByRole("button", { name: "マッピングを確認", exact: true })
     .click();
   await page.getByRole("button", { name: "保存して開始", exact: true }).click();
-  await page.getByRole("button", { name: "編集を終える", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "練習をはじめる" })).toBeVisible();
+  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  await page.getByRole("button", { name: "発表一覧", exact: true }).click();
 }
 
 export async function assertPdfPage(page: Page, number: number) {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ProjectData, Slide } from "../../domain/types";
 import { saveSlide } from "../../lib/storage";
 import { PdfSlide } from "../../components/PdfSlide";
+import { closingForSlide, openingForSlide } from "../../lib/script-cues";
 export function Editor({
   data,
   onExit,
@@ -178,27 +179,31 @@ export function Editor({
                   update({
                     openingExact:
                       chosen ||
-                      slide.fullScript.split(/(?<=[。.!?！？])\s*|\n/)[0] ||
-                      "",
+                      openingForSlide(slide),
                   });
                 }}
               >
-                選択範囲・最初の文を冒頭へ
+                選択範囲を冒頭に登録（任意）
               </button>
               <span className="muted">
-                候補を確認し、自分で調整してください。
+                冒頭は原稿から自動抽出されます。必要なときだけ変更してください。
               </span>
             </div>
             <label>
               冒頭アンカーフレーズ
               <input
                 maxLength={2000000}
-                value={slide.openingExact || ""}
+                value={openingForSlide(slide)}
                 onChange={(e) => update({ openingExact: e.target.value })}
               />
             </label>
+            {slide.openingExact !== undefined && (
+              <button onClick={() => update({ openingExact: undefined })}>
+                冒頭を自動抽出に戻す
+              </button>
+            )}
             <fieldset>
-              <legend>重要説明ポイント</legend>
+              <legend>重要説明ポイント（任意）</legend>
               <p className="muted">
                 順番と意味を思い出すための短いキーワード。最大200件。
               </p>
@@ -274,10 +279,15 @@ export function Editor({
               締めアンカーフレーズ
               <input
                 maxLength={2000000}
-                value={slide.closingExact || ""}
+                value={closingForSlide(slide)}
                 onChange={(e) => update({ closingExact: e.target.value })}
               />
             </label>
+            {slide.closingExact !== undefined && (
+              <button onClick={() => update({ closingExact: undefined })}>
+                締めを自動抽出に戻す
+              </button>
+            )}
             <label>
               次スライドへの接続フレーズ
               <input
@@ -302,7 +312,7 @@ export function Editor({
               />
             </label>
             <p className="muted">
-              アンカーが空欄でも練習できます。編集すると原稿の版が変わり、以前の評価と区別されます。
+              冒頭と締めは原稿の最初と最後の文から自動抽出されます。手動編集は任意です。原稿を変えると自動抽出も更新されます。編集すると原稿の版が変わり、以前の評価と区別されます。
             </p>
           </div>
         </div>

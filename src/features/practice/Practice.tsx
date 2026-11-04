@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   PracticeAttempt,
   PracticeMode,
@@ -9,6 +9,7 @@ import type {
 import { modeLabels, ratingLabels } from "../../domain/types";
 import { PdfSlide } from "../../components/PdfSlide";
 import { saveSession } from "../../lib/storage";
+import { closingForSlide, openingForSlide, sentenceLeadHints } from "../../lib/script-cues";
 import {
   buildQueue,
   elapsedSeconds,
@@ -66,6 +67,13 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
     setRun(next);
   };
   const current = run && data.slides.find((s) => s.id === run.queue[run.index]);
+  const hintLevel = run ? Math.max(0, ...run.draft.hintsUsed.map((h) => h.level)) : 0;
+  const sentenceHints = useMemo(
+    () => current && run?.phase === "recall" && hintLevel > 0 && hintLevel < 3
+      ? sentenceLeadHints(current.fullScript, hintLevel === 1 ? 3 : 8)
+      : [],
+    [current?.fullScript, run?.phase, hintLevel],
+  );
   const resumable = [...data.sessions]
     .filter((s) => !s.endedAt)
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
@@ -542,7 +550,6 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
     );
 
   const seconds = elapsedSeconds(run.clock, now());
-  const hintLevel = Math.max(0, ...run.draft.hintsUsed.map((h) => h.level));
   if (run.phase === "summary")
     return (
       <section className="panel stack practice-summary">
@@ -648,29 +655,41 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
               ? `ヒント ${hintLevel}/3`
               : "答え合わせ（ヒント使用には含みません）"}
           </h3>
-          {(run.phase !== "recall" || hintLevel >= 1) && (
+          {run.phase === "recall" && hintLevel > 0 && hintLevel < 3 && (
             <div>
-              <strong>説明ポイント</strong>
-              {current.keyPoints.length ? (
-                <ol>
-                  {current.keyPoints.map((point) => (
-                    <li key={point.id}>
-                      {point.text}
-                      {point.required ? "（必須）" : ""}
-                    </li>
+              <strong>文頭ヒント（各文の先頭{hintLevel === 1 ? 3 : 8}文字）</strong>
+              {sentenceHints.length ? (
+                <ol className="sentence-cue-list">
+                  {sentenceHints.map((text, index) => (
+                    <li key={index}>{text}</li>
                   ))}
                 </ol>
               ) : (
-                <p>未設定</p>
+                <p>原稿は未設定です</p>
               )}
             </div>
           )}
-          {(run.phase !== "recall" || hintLevel >= 2) && (
-            <p>
-              <strong>冒頭アンカー</strong>
-              <br />
-              {current.openingExact || "未設定"}
-            </p>
+          {run.phase !== "recall" && (
+            <>
+              {current.keyPoints.length > 0 && (
+                <div>
+                  <strong>重要説明ポイント（任意設定）</strong>
+                  <ol>
+                    {current.keyPoints.map((point) => (
+                      <li key={point.id}>
+                        {point.text}
+                        {point.required ? "（必須）" : ""}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              <p>
+                <strong>冒頭アンカー</strong>
+                <br />
+                {openingForSlide(current) || "未設定"}
+              </p>
+            </>
           )}
           {(run.phase !== "recall" || hintLevel >= 3) && (
             <>
@@ -685,7 +704,7 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
               <p>
                 <strong>締めアンカー</strong>
                 <br />
-                {current.closingExact || "未設定"}
+                {closingForSlide(current) || "未設定"}
               </p>
               <p>
                 <strong>次への接続</strong>
@@ -703,7 +722,11 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
               <span className="practice-status">
                 {hintLevel === 0
                   ? "原稿は非表示です"
-                  : `ヒント ${hintLevel}/3 を表示中`}
+                  : hintLevel === 1
+                    ? "文頭3文字を表示中"
+                    : hintLevel === 2
+                      ? "文頭8文字を表示中"
+                      : "原稿全文を表示中"}
                 {run.clock.resumedAt === null ? " · 一時停止中" : ""}
               </span>
               {current?.targetSeconds && (
