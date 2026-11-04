@@ -24,8 +24,11 @@ test("キーボードでヒント・一時停止・未評価スライド移動�
   await page.getByRole("button", { name: "練習を開始", exact: true }).click();
   await assertPdfPage(page, 1);
 
+  // The Space shortcut must win even if the previous button retains focus.
+  await page.getByRole("button", { name: "未評価で次へ", exact: true }).focus();
   await page.keyboard.press("Space");
   await expect(page.getByRole("heading", { name: "ヒント 1/3" })).toBeVisible();
+  await assertPdfPage(page, 1);
   await page.keyboard.press("Space");
   await expect(page.getByRole("heading", { name: "ヒント 2/3" })).toBeVisible();
 
