@@ -126,6 +126,40 @@ describe("practice screen", () => {
     );
     expect(screen.queryByText("Private synthetic script 2")).toBeNull();
   });
+  it("moves to the next or previous slide without a confirmation dialog while saving ungraded attempts", async () => {
+    const confirmation = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<Practice data={data} onExit={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
+    await screen.findByTestId("practice-slide-number");
+
+    fireEvent.click(screen.getByRole("button", { name: "未評価で次へ" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("practice-slide-number")).toHaveTextContent("スライド 2"),
+    );
+    expect(confirmation).not.toHaveBeenCalled();
+    const [, skippedAttempts] = vi.mocked(saveSession).mock.calls.at(-1)!;
+    expect(skippedAttempts.find((attempt) => attempt.slideId === "s1")?.rating).toBeUndefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "前のスライドを練習" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("practice-slide-number")).toHaveTextContent("スライド 1"),
+    );
+    expect(confirmation).not.toHaveBeenCalled();
+    expect(vi.mocked(saveSession).mock.calls.at(-1)?.[1].some(
+      (attempt) => attempt.slideId === "s2" && attempt.rating === undefined,
+    )).toBe(true);
+  });
+
+  it("does not navigate away when saving an ungraded attempt fails", async () => {
+    render(<Practice data={data} onExit={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
+    await screen.findByTestId("practice-slide-number");
+    vi.mocked(saveSession).mockRejectedValueOnce(new Error("synthetic storage error"));
+    fireEvent.click(screen.getByRole("button", { name: "未評価で次へ" }));
+    await screen.findByRole("alert");
+    expect(screen.getByTestId("practice-slide-number")).toHaveTextContent("スライド 1");
+  });
+
   it("records hints only while recalling and includes the frozen script revision", async () => {
     render(<Practice data={data} onExit={() => undefined} />);
     fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
