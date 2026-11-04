@@ -78,7 +78,7 @@ describe("practice screen", () => {
     fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
     await screen.findByTestId("practice-slide-number");
     fireEvent.click(screen.getByRole("button", { name: "ヒントを表示" }));
-    expect(screen.getByText("Key idea（必須）")).toBeVisible();
+    expect(screen.getByText("Pri……")).toBeVisible();
     expect(screen.queryByText("Private synthetic script 1")).toBeNull();
     fireEvent.click(
       screen.getByRole("button", { name: "発話を終えて答え合わせ" }),
@@ -88,6 +88,37 @@ describe("practice screen", () => {
     expect(attempt?.hintsUsed).toHaveLength(1);
     expect(attempt?.hintsUsed[0].level).toBe(1);
     expect(attempt?.slideRevision).toBe(1);
+  });
+  it("derives sentence-start hints and anchors from an unedited imported script", async () => {
+    const unedited: ProjectData = {
+      ...data,
+      slides: data.slides.map((slide, index) =>
+        index === 0
+          ? {
+              ...slide,
+              fullScript: "本日はありがとうございます。次に研究を紹介します。",
+              openingExact: undefined,
+              closingExact: undefined,
+              keyPoints: [],
+            }
+          : slide,
+      ),
+    };
+    render(<Practice data={unedited} onExit={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
+    await screen.findByTestId("practice-slide-number");
+    fireEvent.click(screen.getByRole("button", { name: "ヒントを表示" }));
+    expect(screen.getByText("本日は……")).toBeVisible();
+    expect(screen.getByText("次に研……")).toBeVisible();
+    expect(screen.queryByText("本日はありがとうございます。次に研究を紹介します。")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "ヒントを表示" }));
+    expect(screen.getByText("本日はありがとう……")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "ヒントを表示" }));
+    expect(screen.getByText("本日はありがとうございます。次に研究を紹介します。")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "発話を終えて答え合わせ" }));
+    await screen.findByText("本日はありがとうございます。");
+    expect(screen.getByText("次に研究を紹介します。")).toBeVisible();
+    expect(vi.mocked(saveSession).mock.calls.at(-1)?.[1][0].hintsUsed).toHaveLength(3);
   });
   it("does not advance when a database transaction fails", async () => {
     const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
