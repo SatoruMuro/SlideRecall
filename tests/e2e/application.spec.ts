@@ -12,6 +12,27 @@ import {
   syntheticToken,
 } from "./helpers";
 
+test("未評価の前後移動は確認ダイアログなしで保存される", async ({ page }) => {
+  const dialogs: string[] = [];
+  page.on("dialog", (dialog) => {
+    dialogs.push(dialog.message());
+    void dialog.dismiss();
+  });
+  await page.goto("./");
+  await importPresentation(page);
+  await page.getByRole("button", { name: "続きから練習", exact: true }).click();
+  await page.getByRole("button", { name: "練習を開始", exact: true }).click();
+  await assertPdfPage(page, 1);
+
+  await page.getByRole("button", { name: "未評価で次へ", exact: true }).click();
+  await assertPdfPage(page, 2);
+  expect(dialogs).toEqual([]);
+
+  await page.getByRole("button", { name: "前のスライドを練習", exact: true }).click();
+  await assertPdfPage(page, 1);
+  expect(dialogs).toEqual([]);
+});
+
 test("PDFのページ対応、練習履歴、苦手集中、別ブラウザへのZIP復元", async ({
   page,
   browser,
