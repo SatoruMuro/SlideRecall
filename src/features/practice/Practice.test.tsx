@@ -211,7 +211,9 @@ describe("practice screen", () => {
     await screen.findByRole("button", { name: "自己評価へ" });
     fireEvent.click(screen.getByRole("button", { name: "自己評価へ" }));
     fireEvent.click(screen.getByRole("button", { name: "× 再現困難" }));
-    await screen.findByRole("button", { name: "次へ" });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "次へ" })).toBeEnabled(),
+    );
     const navigate = async (key: "ArrowRight" | "ArrowLeft", page: number) => {
       fireEvent.keyDown(document.body, { key, code: key });
       await waitFor(() =>
