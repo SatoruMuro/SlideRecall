@@ -150,6 +150,137 @@ describe("practice screen", () => {
     )).toBe(true);
   });
 
+  it("walks backward across several previously visited slides without changing the queue", async () => {
+    const expanded: ProjectData = {
+      ...data,
+      project: { ...data.project, pageCount: 4 },
+      slides: Array.from({ length: 4 }, (_, i) => ({
+        ...data.slides[0],
+        id: `s${i + 1}`,
+        pageNumber: i + 1,
+        fullScript: `Synthetic script ${i + 1}.`,
+      })),
+    };
+    const confirmation = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<Practice data={expanded} onExit={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
+    await screen.findByTestId("practice-slide-number");
+    const navigate = async (key: "ArrowRight" | "ArrowLeft", page: number) => {
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+      );
+      fireEvent.keyDown(document.body, { key, code: key });
+      await waitFor(() =>
+        expect(screen.getByTestId("practice-slide-number")).toHaveTextContent(
+          `スライド ${page}`,
+        ),
+      );
+    };
+    await navigate("ArrowRight", 2);
+    await navigate("ArrowRight", 3);
+    await navigate("ArrowLeft", 2);
+    await navigate("ArrowLeft", 1);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+    );
+    expect(screen.getByRole("button", { name: "前のスライドを練習" })).toBeDisabled();
+    await navigate("ArrowRight", 2);
+    await navigate("ArrowRight", 3);
+    await navigate("ArrowRight", 4);
+    expect(confirmation).not.toHaveBeenCalled();
+    const [session, attempts] = vi.mocked(saveSession).mock.calls.at(-1)!;
+    expect(session.slideIds).toEqual(["s1", "s2", "s3", "s4"]);
+    expect(session.progress?.index).toBe(3);
+    expect(attempts).toHaveLength(8);
+    expect(attempts.every((attempt) => !attempt.rating)).toBe(true);
+  });
+
+  it("keeps scheduled retries intact when stepping back through previously seen prompts", async () => {
+    const three: ProjectData = {
+      ...data,
+      project: { ...data.project, pageCount: 3 },
+      slides: [
+        ...data.slides,
+        { ...data.slides[0], id: "s3", pageNumber: 3 },
+      ],
+    };
+    render(<Practice data={three} onExit={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
+    await screen.findByTestId("practice-slide-number");
+    fireEvent.click(screen.getByRole("button", { name: "発話を終えて答え合わせ" }));
+    await screen.findByRole("button", { name: "自己評価へ" });
+    fireEvent.click(screen.getByRole("button", { name: "自己評価へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "× 再現困難" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "次へ" })).toBeEnabled(),
+    );
+    const navigate = async (key: "ArrowRight" | "ArrowLeft", page: number) => {
+      fireEvent.keyDown(document.body, { key, code: key });
+      await waitFor(() =>
+        expect(screen.getByTestId("practice-slide-number")).toHaveTextContent(
+          `スライド ${page}`,
+        ),
+      );
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+      );
+    };
+    await navigate("ArrowRight", 2);
+    await navigate("ArrowRight", 3);
+    await navigate("ArrowRight", 1); // automatic retry
+    await navigate("ArrowLeft", 3);
+    await navigate("ArrowLeft", 2);
+    await navigate("ArrowLeft", 1);
+    const [session, attempts] = vi.mocked(saveSession).mock.calls.at(-1)!;
+    expect(session.slideIds).toEqual(["s1", "s2", "s3", "s1"]);
+    expect(attempts.some((a) => a.slideId === "s1" && a.rating === "again")).toBe(true);
+  });
+
+  it("resumes from a saved backward cursor instead of jumping to the end", async () => {
+    const expanded: ProjectData = {
+      ...data,
+      project: { ...data.project, pageCount: 3 },
+      slides: [...data.slides, { ...data.slides[0], id: "s3", pageNumber: 3 }],
+    };
+    const original = render(<Practice data={expanded} onExit={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));
+    await screen.findByTestId("practice-slide-number");
+    for (const [key, page] of [
+      ["ArrowRight", 2],
+      ["ArrowRight", 3],
+      ["ArrowLeft", 2],
+    ] as const) {
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+      );
+      fireEvent.keyDown(document.body, { key, code: key });
+      await waitFor(() =>
+        expect(screen.getByTestId("practice-slide-number")).toHaveTextContent(`スライド ${page}`),
+      );
+    }
+    const [session, attempts] = vi.mocked(saveSession).mock.calls.at(-1)!;
+    expect(session.progress?.index).toBe(1);
+    expect(session.slideIds).toEqual(["s1", "s2", "s3"]);
+    original.unmount();
+    render(
+      <Practice
+        data={{ ...expanded, sessions: [session], attempts }}
+        onExit={() => undefined}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "続きから再開" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("practice-slide-number")).toHaveTextContent("スライド 2"),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "一時停止" })).toBeEnabled(),
+    );
+    fireEvent.keyDown(document.body, { key: "ArrowLeft", code: "ArrowLeft" });
+    await waitFor(() =>
+      expect(screen.getByTestId("practice-slide-number")).toHaveTextContent("スライド 1"),
+    );
+  });
+
   it("does not navigate away when saving an ungraded attempt fails", async () => {
     render(<Practice data={data} onExit={() => undefined} />);
     fireEvent.click(screen.getByRole("button", { name: "練習を開始" }));

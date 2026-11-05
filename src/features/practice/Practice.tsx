@@ -15,7 +15,6 @@ import {
   elapsedSeconds,
   finishAttempt,
   formatDuration,
-  MAX_ATTEMPTS_PER_SLIDE,
   pauseClock,
   resumeClock,
   revealHint,
@@ -303,17 +302,7 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
     });
   }
   async function moveNext(previous = false) {
-    if (!run) return;
-    if (
-      previous &&
-      run.queue.filter((id) => id === run.queue[run.index - 1]).length >=
-        MAX_ATTEMPTS_PER_SLIDE
-    ) {
-      setError(
-        "このスライドは今回の練習で3回出題しています。続ける場合は新しい練習を開始してください。",
-      );
-      return;
-    }
+    if (!run || (previous && run.index === 0)) return;
     const clock = pauseClock(run.clock, now());
     const draft =
       run.phase === "recall"
@@ -324,11 +313,11 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
           )
         : run.draft;
     const attempts = replaceAttempt(run.attempts, draft);
-    const queue = [...run.queue];
-    if (previous && run.index > 0)
-      queue.splice(run.index + 1, 0, run.queue[run.index - 1]);
-    const index = run.index + 1;
-    if (index === queue.length) {
+    // Navigating back changes the cursor, not the scheduled queue. Inserting
+    // a duplicate at the next position made repeated Left arrows bounce
+    // between two slides and could interfere with retry scheduling.
+    const index = run.index + (previous ? -1 : 1);
+    if (index === run.queue.length) {
       await commit({
         ...run,
         attempts,
@@ -341,9 +330,8 @@ export function Practice({ data, onExit, initialMode = "sequential" }: Props) {
       await commit({
         ...run,
         attempts,
-        queue,
         index,
-        draft: newDraft(run.session.id, queue[index]),
+        draft: newDraft(run.session.id, run.queue[index]),
         clock: { elapsedMs: 0, resumedAt: now() },
         phase: "recall",
       });
