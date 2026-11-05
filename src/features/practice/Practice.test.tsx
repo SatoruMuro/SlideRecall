@@ -213,9 +213,6 @@ describe("practice screen", () => {
     fireEvent.click(screen.getByRole("button", { name: "× 再現困難" }));
     await screen.findByRole("button", { name: "次へ" });
     const navigate = async (key: "ArrowRight" | "ArrowLeft", page: number) => {
-      await waitFor(() =>
-        expect(screen.getByRole("button", { name: "次へ" })).toBeEnabled(),
-      ).catch(() => undefined);
       fireEvent.keyDown(document.body, { key, code: key });
       await waitFor(() =>
         expect(screen.getByTestId("practice-slide-number")).toHaveTextContent(
