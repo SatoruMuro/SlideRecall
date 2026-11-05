@@ -65,6 +65,41 @@ test("未評価の前後移動は確認ダイアログなしで保存される",
   expect(dialogs).toEqual([]);
 });
 
+test("連続した左矢印で3→2→1と戻り、右矢印で正しい順に進む", async ({ page }) => {
+  const unexpectedDialogs: string[] = [];
+  page.on("dialog", (dialog) => {
+    unexpectedDialogs.push(dialog.message());
+    void dialog.dismiss();
+  });
+  await page.goto("./");
+  await importPresentation(page);
+  await page.getByRole("button", { name: "続きから練習", exact: true }).click();
+  await page.getByRole("button", { name: "練習を開始", exact: true }).click();
+  await assertPdfPage(page, 1);
+
+  const steps = [
+    ["ArrowRight", 2],
+    ["ArrowRight", 3],
+    ["ArrowLeft", 2],
+    ["ArrowLeft", 1],
+    ["ArrowRight", 2],
+    ["ArrowRight", 3],
+  ] as const;
+  for (const [key, slideNumber] of steps) {
+    await page.keyboard.press(key);
+    await assertPdfPage(page, slideNumber);
+  }
+  // Going back to the first item must not wrap or insert new queue entries.
+  await page.keyboard.press("ArrowLeft");
+  await assertPdfPage(page, 2);
+  await page.keyboard.press("ArrowLeft");
+  await assertPdfPage(page, 1);
+  await expect(page.getByRole("button", { name: "前のスライドを練習" })).toBeDisabled();
+  await page.keyboard.press("ArrowLeft");
+  await assertPdfPage(page, 1);
+  expect(unexpectedDialogs).toEqual([]);
+});
+
 test("PDFのページ対応、練習履歴、苦手集中、別ブラウザへのZIP復元", async ({
   page,
   browser,
